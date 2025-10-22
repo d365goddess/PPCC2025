@@ -1,0 +1,293 @@
+kind: AdaptiveDialog
+modelDescription: "This tool helps customers make a reservation. It can handle queries like these:  i want to make a reservation, I want to reserve a table, etc."
+beginDialog:
+  kind: OnRecognizedIntent
+  id: main
+  intent:
+    displayName: Untitled (Copy)
+    triggerQueries:
+      - test
+      - i want to make a reservation
+      - reservation
+      - demo 2
+
+  actions:
+    - kind: SendActivity
+      id: sC8dij
+      activity:
+        text:
+          - "Hi! I can assist with making a reservation! "
+        attachments:
+          - kind: ImageCardTemplate
+            title: Our Restaurant
+            image: https://www.vancouverdine.com/wp-content/uploads/2022/09/0O1A1520.jpg
+
+    - kind: Question
+      id: ue8DDI
+      interruptionPolicy:
+        allowInterruption: true
+
+      unrecognizedPrompt: Please enter a name we can schedule the reservation under
+      variable: init:Topic.name
+      prompt: What is the last name the reservation should be under?
+      entity: PersonNamePrebuiltEntity
+
+    - kind: Question
+      id: question_6PY3MD
+      interruptionPolicy:
+        allowInterruption: true
+
+      unrecognizedPrompt: SOrry that didn't look like an email address, please enter an email address.
+      variable: Global.Email
+      prompt: Please enter your email address
+      entity: EmailPrebuiltEntity
+
+    - kind: Question
+      id: jh9Ymv
+      displayName: Party Size
+      interruptionPolicy:
+        allowInterruption: true
+
+      unrecognizedPrompt: I'm sorry I didn't get that, can you please enter the number of people that will be in your party?
+      alwaysPrompt: false
+      variable: Topic.people
+      prompt: How many people will be in your party?
+      invalidPrompt: Although our portions are huge, our dining room is small; we can only accomodate up to 10 people. Please select a different number.
+      validation: =Topic.people < 11 && Topic.people > 0
+      entity: NumberPrebuiltEntity
+
+    - kind: Question
+      id: question_b5SUcp
+      displayName: Date and Time
+      interruptionPolicy:
+        allowInterruption: true
+
+      unrecognizedPrompt: Please enter a valid date and time
+      repeatCount: 2
+      alwaysPrompt: true
+      variable: init:Topic.DateTime
+      prompt:
+        text:
+          - What date and time would you like to reserve?
+          - Select the date and time for your reservation.
+
+      invalidPrompt: I would love to time travel, but we can't! Please select a date in the future!
+      validation: =Topic.DateTime > DateValue(Now())
+      entity: DateTimePrebuiltEntity
+
+    - kind: SetVariable
+      id: setVariable_o6RdYP
+      variable: Topic.Time
+      value: =Hour(Topic.DateTime)
+
+    - kind: ConditionGroup
+      id: conditionGroup_yu2o1r
+      conditions:
+        - id: conditionItem_razBKa
+          condition: =Topic.Time < Hour("11:00 AM") || Topic.Time >= Hour("10:00 PM")
+          actions:
+            - kind: SendActivity
+              id: sendActivity_Tsonla
+              activity: Sorry our restaurant is only open between 11AM and 10PM.
+
+            - kind: GotoAction
+              id: 2JBLRx
+              actionId: question_b5SUcp
+
+    - kind: AdaptiveCardPrompt
+      id: MzBUP7
+      card: |-
+        ={
+          '$schema': "https://adaptivecards.io/schemas/adaptive-card.json",
+          type: "AdaptiveCard",
+          version: "1.5",
+          body: [
+            {
+              type: "TextBlock",
+              text: "🎉 Please review the details before confirming:🎉",
+              wrap: true,
+              size: "Large",
+              weight: "Bolder",
+              color: "Accent",
+              horizontalAlignment: "Center",
+              spacing: "Medium"
+            },
+            {
+              type: "ColumnSet",
+              columns: [
+                {
+                  type: "Column",
+                  width: "2",
+                  items: [
+                    {
+                      type: "TextBlock",
+                      text: "👤 Name: "& (Topic.name),
+                      wrap: true,
+                      size: "Medium",
+                      weight: "Bolder",
+                      spacing: "Small",
+                      color: "Good"
+                    },
+                    {
+                      type: "TextBlock",
+                      text: "👥 Number of People: " & (Topic.people),
+                      wrap: true,
+                      spacing: "Small",
+                      color: "Accent"
+                    },
+                    {
+                      type: "TextBlock",
+                      text: "📅 Date: " & (DateValue(Topic.DateTime)),
+                      wrap: true,
+                      spacing: "Small"
+                    },
+                    {
+                      type: "TextBlock",
+                      text: "⏰ Time: " & (TimeValue(Topic.DateTime)),
+                      wrap: true,
+                      spacing: "Small"
+                    },
+                    {
+                      type: "TextBlock",
+                      text: "📧 Email: " & (Global.Email),
+                      wrap: true,
+                      spacing: "Small"
+                    }
+                  ]
+                },
+                {
+                  type: "Column",
+                  width: "1",
+                  items: [
+                    {
+                      type: "Image",
+                      url: "https://d365goddess.com/wp-content/uploads/2025/10/Reservation.avif",
+                      size: "Large",
+                      horizontalAlignment: "Right",
+                      spacing: "Medium"
+                    }
+                  ]
+                }
+              ],
+              spacing: "Medium"
+            },
+            {
+              type: "ActionSet",
+              actions: [
+                {
+                  type: "Action.Submit",
+                  title: "✅ Confirm",
+                  style: "positive",
+                  data: {
+                    Output: "Confirm",
+                    OutputType: "String"
+                  }
+                },
+                {
+                  type: "Action.Submit",
+                  title: "❌ Cancel",
+                  style: "destructive",
+                  data: {
+                    Output: "Cancel",
+                    OutputType: "String"
+                  }
+                }
+              ],
+              spacing: "Medium"
+            }
+          ]
+        }
+      output:
+        binding:
+          actionSubmitId: Topic.actionSubmitId
+          Output: Topic.Output
+          OutputType: Topic.OutputType
+
+      outputType:
+        properties:
+          actionSubmitId: String
+          Output: String
+          OutputType: String
+
+    - kind: ConditionGroup
+      id: conditionGroup_AIP7tG
+      conditions:
+        - id: conditionItem_IUeQg1
+          condition: =Topic.Output = "Confirm"
+
+      elseActions:
+        - kind: SendActivity
+          id: 5N4cm0
+          activity: Sorry there was an issue with the reservation, let's try again.
+
+        - kind: GotoAction
+          id: EQB1gv
+          actionId: ue8DDI
+
+    - kind: SendActivity
+      id: 5zTdfO
+      activity:
+        attachments:
+          - kind: AdaptiveCardTemplate
+            cardContent: |-
+              ={
+                '$schema': "http://adaptivecards.io/schemas/adaptive-card.json",
+                type: "AdaptiveCard",
+                version: "1.5",
+                body: [
+                  {
+                    type: "TextBlock",
+                    text: "Your reservation is confirmed!",
+                    wrap: true,
+                    size: "Medium",
+                    weight: "Bolder",
+                    color: "Attention"
+                  },
+                  {
+                    type: "ColumnSet",
+                    columns: [
+                      {
+                        type: "Column",
+                        width: "2",
+                        items: [
+                          {
+                            type: "TextBlock",
+                            text: "Name: " & (Topic.name),
+                            wrap: true,
+                            size: "Medium",
+                            weight: "Bolder",
+                            spacing: "None"
+                          },
+                          {
+                            type: "TextBlock",
+                            text: "Number of People " & (Topic.people),
+                            wrap: true,
+                            spacing: "Small"
+                          },
+                          {
+                            type: "TextBlock",
+                            text: "Date: " & (Topic.DateTime),
+                            wrap: true,
+                            spacing: "Small"
+                          }
+                        ]
+                      },
+                      {
+                        type: "Column",
+                        width: "1",
+                        items: [
+                          {
+                            type: "Image",
+                            url: "https://www.rooneysrestaurant.com/wp-content/uploads/2016/08/reservation-img.jpg",
+                            size: "Large",
+                            horizontalAlignment: "Right"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+
+    - kind: EndConversation
+      id: LWD0SU
